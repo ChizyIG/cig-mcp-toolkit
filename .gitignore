@@ -1,6 +1,32 @@
-# Gitignore
+# Editor / OS
 .vscode/*
 .idea/
 *.iml
 .DS_Store
 Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+.env
+.python-version
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Go
+*.test
+coverage.out
+coverage.txt
+vendor/
