@@ -1,0 +1,91 @@
+name: Bug report
+description: Report a defect in cig-mcp-toolkit
+title: "[bug] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. Please fill out the fields below so we can reproduce and triage efficiently.
+
+        **Security vulnerabilities:** do not file them here — see [SECURITY.md](../SECURITY.md) for the private disclosure process.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear, one-paragraph description of the bug.
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of the toolkit is affected?
+      options:
+        - "cig_mcp (Python core library)"
+        - "cig-mcp (Go core library)"
+        - "servers/market_data"
+        - "servers/portfolio_snapshot"
+        - "servers/risk_metrics"
+        - "servers/backtest_runner"
+        - "servers/data_pipeline_monitor"
+        - "Schemas"
+        - "Docs"
+        - "CI / tooling"
+        - "Other / unsure"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal, numbered steps. Include commands and any config/data needed.
+      placeholder: |
+        1. Run `uv run python -m servers.market_data --symbol AAPL`
+        2. Send MCP `tools/call` for `get_ohlcv` with ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include error messages, stack traces, or MCP response payloads.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: Release tag, `main`, or a specific commit SHA.
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: "OS + language runtime (e.g. macOS 14.5, Python 3.12.2, Go 1.22.3)"
+    validations:
+      required: true
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Anything else — related issues, workarounds you tried, hypotheses.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: This is not a security vulnerability (those go through SECURITY.md).
+          required: true

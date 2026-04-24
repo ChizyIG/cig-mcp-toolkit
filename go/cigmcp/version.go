@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+// Package cigmcp is the root of the cig-mcp-toolkit Go module —
+// MCP building blocks for quantitative finance.
+package cigmcp
 
-import "fmt"
-
-func main() {
-	fmt.Println("Hello, World!")
-}
+// Version is the current release of the cig-mcp-toolkit Go module.
+const Version = "0.1.0"

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/ChizyIG/cig-mcp-toolkit/security/advisories/new
+    about: Do not open a public issue. Use this private channel or see SECURITY.md.
+  - name: Question or discussion
+    url: https://github.com/ChizyIG/cig-mcp-toolkit/discussions
+    about: For open-ended questions, design discussion, or ideas that aren't yet a concrete bug or feature.

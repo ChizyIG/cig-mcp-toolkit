@@ -12,4 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-print("Hello, World!")
+"""Model Context Protocol building blocks for quantitative finance."""
+
+__version__ = "0.1.0"
+
+__all__ = ["__version__"]
