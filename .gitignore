@@ -30,3 +30,17 @@ htmlcov/
 coverage.out
 coverage.txt
 vendor/
+# Stray binaries from `go build ./cmd/*` run inside go/
+/go/bin/
+/go/cig-mcp-*
+
+# Node (npx / inspector tooling sometimes materializes a local cache)
+node_modules/
+
+# Logs
+*.log
+
+# Editor swap files
+*.swp
+*.swo
+*~
