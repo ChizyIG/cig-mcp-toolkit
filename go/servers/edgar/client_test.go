@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -171,9 +172,8 @@ func TestListFilingsFormFilterIsCaseInsensitive(t *testing.T) {
 
 func TestSubmissionsHTTPErrorIsSurfaced(t *testing.T) {
 	c := newTestClient(t)
-	// Inject a ticker that maps to CIK 999999 which our test server 404s.
+	// Pre-seed the cache with a ticker whose CIK 404s on submissions.
 	c.tickers = map[string]int{"FAKE": 999999}
-	c.once.Do(func() {})
 
 	_, err := c.LookupCompany(context.Background(), "FAKE")
 	if err == nil {
@@ -181,5 +181,59 @@ func TestSubmissionsHTTPErrorIsSurfaced(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "status 404") {
 		t.Errorf("err = %v, want 'status 404' in message", err)
+	}
+}
+
+func TestLoadTickersRetriesAfterTransientFailure(t *testing.T) {
+	var calls atomic.Int32
+	mux := http.NewServeMux()
+	mux.HandleFunc("/tickers.json", func(w http.ResponseWriter, _ *http.Request) {
+		if calls.Add(1) == 1 {
+			http.Error(w, "upstream blip", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(tickersFixture))
+	})
+	mux.HandleFunc("/submissions/CIK0000320193.json", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(aaplSubmissionsFixture))
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	c := New()
+	c.TickersURL = srv.URL + "/tickers.json"
+	c.SubmissionsURL = srv.URL + "/submissions"
+
+	if _, err := c.LookupCompany(context.Background(), "AAPL"); err == nil {
+		t.Fatal("expected first call to fail")
+	}
+	co, err := c.LookupCompany(context.Background(), "AAPL")
+	if err != nil {
+		t.Fatalf("expected second call to succeed after transient failure, got: %v", err)
+	}
+	if co.CIK != "0000320193" {
+		t.Errorf("CIK = %q, want 0000320193", co.CIK)
+	}
+	if got := calls.Load(); got != 2 {
+		t.Errorf("tickers endpoint called %d times, want 2 (first failed, second succeeded)", got)
+	}
+}
+
+func TestArchiveBaseURLIsConfigurable(t *testing.T) {
+	c := newTestClient(t)
+	c.ArchiveBaseURL = "https://example.test/archive"
+
+	filings, err := c.ListFilings(context.Background(), "AAPL", "10-K", 1)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if len(filings) != 1 {
+		t.Fatalf("got %d filings, want 1", len(filings))
+	}
+	want := "https://example.test/archive/320193/000032019324000123/aapl-20240928.htm"
+	if filings[0].URL != want {
+		t.Errorf("URL = %q, want %q", filings[0].URL, want)
 	}
 }

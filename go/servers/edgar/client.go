@@ -34,21 +34,22 @@ const DefaultUserAgent = "cig-mcp-toolkit/0.1.0 (legal@chizyig.com)"
 const (
 	defaultTickersURL     = "https://www.sec.gov/files/company_tickers.json"
 	defaultSubmissionsURL = "https://data.sec.gov/submissions"
+	defaultArchiveURL     = "https://www.sec.gov/Archives/edgar/data"
 )
 
 // Client talks to EDGAR's public JSON endpoints.
 //
-// The zero value is not usable — call New(). Override TickersURL /
-// SubmissionsURL in tests to point at an httptest.Server.
+// The zero value is not usable — call New(). Override TickersURL,
+// SubmissionsURL, and ArchiveBaseURL in tests to point at an httptest.Server.
 type Client struct {
 	HTTP           *http.Client
 	UserAgent      string
 	TickersURL     string
 	SubmissionsURL string
+	ArchiveBaseURL string
 
-	once    sync.Once
+	mu      sync.RWMutex
 	tickers map[string]int
-	loadErr error
 }
 
 // Company is the metadata returned by LookupCompany.
@@ -77,48 +78,65 @@ func New() *Client {
 		UserAgent:      DefaultUserAgent,
 		TickersURL:     defaultTickersURL,
 		SubmissionsURL: defaultSubmissionsURL,
+		ArchiveBaseURL: defaultArchiveURL,
 	}
 }
 
 func (c *Client) loadTickers(ctx context.Context) error {
-	c.once.Do(func() {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.TickersURL, nil)
-		if err != nil {
-			c.loadErr = err
-			return
-		}
-		req.Header.Set("User-Agent", c.UserAgent)
-		req.Header.Set("Accept", "application/json")
+	c.mu.RLock()
+	cached := c.tickers
+	c.mu.RUnlock()
+	if cached != nil {
+		return nil
+	}
 
-		resp, err := c.HTTP.Do(req)
-		if err != nil {
-			c.loadErr = fmt.Errorf("fetch tickers: %w", err)
-			return
-		}
-		defer func() { _ = resp.Body.Close() }()
+	// Fetch outside the lock so a slow upstream doesn't block readers, and so
+	// a transient failure isn't permanently cached (the next call retries).
+	m, err := c.fetchTickers(ctx)
+	if err != nil {
+		return err
+	}
 
-		if resp.StatusCode != http.StatusOK {
-			c.loadErr = fmt.Errorf("fetch tickers: status %d", resp.StatusCode)
-			return
-		}
-
-		var raw map[string]struct {
-			CIKStr int    `json:"cik_str"`
-			Ticker string `json:"ticker"`
-			Title  string `json:"title"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
-			c.loadErr = fmt.Errorf("decode tickers: %w", err)
-			return
-		}
-
-		m := make(map[string]int, len(raw))
-		for _, entry := range raw {
-			m[strings.ToUpper(entry.Ticker)] = entry.CIKStr
-		}
+	c.mu.Lock()
+	if c.tickers == nil {
 		c.tickers = m
-	})
-	return c.loadErr
+	}
+	c.mu.Unlock()
+	return nil
+}
+
+func (c *Client) fetchTickers(ctx context.Context) (map[string]int, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.TickersURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", c.UserAgent)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch tickers: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("fetch tickers: status %d", resp.StatusCode)
+	}
+
+	var raw map[string]struct {
+		CIKStr int    `json:"cik_str"`
+		Ticker string `json:"ticker"`
+		Title  string `json:"title"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return nil, fmt.Errorf("decode tickers: %w", err)
+	}
+
+	m := make(map[string]int, len(raw))
+	for _, entry := range raw {
+		m[strings.ToUpper(entry.Ticker)] = entry.CIKStr
+	}
+	return m, nil
 }
 
 func (c *Client) cikForTicker(ctx context.Context, ticker string) (int, error) {
@@ -129,7 +147,9 @@ func (c *Client) cikForTicker(ctx context.Context, ticker string) (int, error) {
 	if err := c.loadTickers(ctx); err != nil {
 		return 0, err
 	}
+	c.mu.RLock()
 	cik, ok := c.tickers[cleaned]
+	c.mu.RUnlock()
 	if !ok {
 		return 0, fmt.Errorf("unknown ticker %q", cleaned)
 	}
@@ -232,7 +252,8 @@ func (c *Client) ListFilings(
 		}
 		accNoDash := strings.ReplaceAll(rec.AccessionNumber[i], "-", "")
 		url := fmt.Sprintf(
-			"https://www.sec.gov/Archives/edgar/data/%d/%s/%s",
+			"%s/%d/%s/%s",
+			strings.TrimRight(c.ArchiveBaseURL, "/"),
 			cik, accNoDash, rec.PrimaryDocument[i],
 		)
 		out = append(out, Filing{

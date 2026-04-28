@@ -59,13 +59,19 @@ def get_quote(symbol: str) -> dict[str, Any]:
     if last_price is None or previous_close is None:
         raise ValueError(f"no quote data available for {cleaned!r}")
 
-    change = float(last_price) - float(previous_close)
-    change_percent = (change / float(previous_close)) * 100.0 if previous_close else 0.0
+    try:
+        last_price_f = float(last_price)
+        previous_close_f = float(previous_close)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"non-numeric quote data for {cleaned!r}: {exc}") from exc
+
+    change = last_price_f - previous_close_f
+    change_percent = (change / previous_close_f) * 100.0 if previous_close_f else 0.0
 
     return {
         "symbol": cleaned,
-        "last_price": float(last_price),
-        "previous_close": float(previous_close),
+        "last_price": last_price_f,
+        "previous_close": previous_close_f,
         "change": change,
         "change_percent": change_percent,
         "currency": getattr(info, "currency", None),

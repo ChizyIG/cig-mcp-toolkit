@@ -89,6 +89,18 @@ def test_wraps_upstream_errors():
         get_quote("AAPL")
 
 
+def test_rejects_non_numeric_quote_data():
+    # yfinance occasionally returns sentinels like "N/A" for thinly-traded
+    # symbols; float() would raise outside the upstream try/except.
+    ticker = MagicMock(fast_info=_info(last_price="N/A", previous_close=10.0))
+
+    with (
+        patch("cig_mcp.servers.yahoo.server.yf.Ticker", return_value=ticker),
+        pytest.raises(ValueError, match="non-numeric quote data"),
+    ):
+        get_quote("THINLY")
+
+
 def test_tool_is_registered_with_mcp_server():
     tools = asyncio.run(mcp.list_tools())
     assert any(t.name == "get_quote" for t in tools)
