@@ -20,7 +20,7 @@ By participating, you agree to abide by our [Code of Conduct](./CODE_OF_CONDUCT.
 ### Prerequisites
 
 - Python 3.11+ managed via [`uv`](https://docs.astral.sh/uv/)
-- Go 1.22+
+- Go 1.25+ (the version is pinned in [`go/go.mod`](./go/go.mod))
 - Git
 
 ### Python (`python/`)

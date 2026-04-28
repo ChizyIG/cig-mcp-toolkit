@@ -37,7 +37,11 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
     "mcp>=1.26",
+    "yfinance>=0.2.50",
 ]
+
+[project.scripts]
+cig-mcp-yahoo = "cig_mcp.servers.yahoo.server:main"
 
 [project.urls]
 Homepage = "https://github.com/ChizyIG/cig-mcp-toolkit"
@@ -85,6 +89,10 @@ mypy_path = "src"
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = ["yfinance", "yfinance.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
