@@ -63,6 +63,10 @@ type Company struct {
 }
 
 // Filing is one row from the recent-filings array on the submissions endpoint.
+//
+// URL is empty when the filing has no primary document (e.g., header-only
+// submissions and some 8-K amendments). Callers that need to browse such
+// filings can build the directory URL themselves from CIK + AccessionNumber.
 type Filing struct {
 	Form            string `json:"form"`
 	FilingDate      string `json:"filing_date"`
@@ -251,11 +255,14 @@ func (c *Client) ListFilings(
 			continue
 		}
 		accNoDash := strings.ReplaceAll(rec.AccessionNumber[i], "-", "")
-		url := fmt.Sprintf(
-			"%s/%d/%s/%s",
-			strings.TrimRight(c.ArchiveBaseURL, "/"),
-			cik, accNoDash, rec.PrimaryDocument[i],
-		)
+		var url string
+		if doc := rec.PrimaryDocument[i]; doc != "" {
+			url = fmt.Sprintf(
+				"%s/%d/%s/%s",
+				strings.TrimRight(c.ArchiveBaseURL, "/"),
+				cik, accNoDash, doc,
+			)
+		}
 		out = append(out, Filing{
 			Form:            rec.Form[i],
 			FilingDate:      rec.FilingDate[i],

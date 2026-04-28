@@ -36,10 +36,10 @@ const aaplSubmissionsFixture = `{
   "tickers": ["AAPL"],
   "filings": {
     "recent": {
-      "accessionNumber": ["0000320193-24-000123", "0000320193-24-000110", "0000320193-24-000099"],
-      "filingDate":      ["2024-11-01",            "2024-08-02",            "2024-05-03"],
-      "form":            ["10-K",                  "10-Q",                  "10-Q"],
-      "primaryDocument": ["aapl-20240928.htm",     "aapl-q3.htm",           "aapl-q2.htm"]
+      "accessionNumber": ["0000320193-24-000123", "0000320193-24-000110", "0000320193-24-000099", "0000320193-24-000088"],
+      "filingDate":      ["2024-11-01",            "2024-08-02",            "2024-05-03",            "2024-03-15"],
+      "form":            ["10-K",                  "10-Q",                  "10-Q",                  "8-K"],
+      "primaryDocument": ["aapl-20240928.htm",     "aapl-q3.htm",           "aapl-q2.htm",           ""]
     }
   }
 }`
@@ -117,8 +117,8 @@ func TestListFilings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
-	if len(filings) != 3 {
-		t.Fatalf("got %d filings, want 3", len(filings))
+	if len(filings) != 4 {
+		t.Fatalf("got %d filings, want 4", len(filings))
 	}
 
 	first := filings[0]
@@ -129,6 +129,23 @@ func TestListFilings(t *testing.T) {
 		"000032019324000123/aapl-20240928.htm"
 	if first.URL != wantURL {
 		t.Errorf("URL = %q, want %q", first.URL, wantURL)
+	}
+}
+
+func TestListFilingsEmptyPrimaryDocumentLeavesURLEmpty(t *testing.T) {
+	c := newTestClient(t)
+	filings, err := c.ListFilings(context.Background(), "AAPL", "8-K", 0)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if len(filings) != 1 {
+		t.Fatalf("got %d filings, want 1", len(filings))
+	}
+	if filings[0].PrimaryDocument != "" {
+		t.Errorf("PrimaryDocument = %q, want empty", filings[0].PrimaryDocument)
+	}
+	if filings[0].URL != "" {
+		t.Errorf("URL = %q, want empty (no document to link to)", filings[0].URL)
 	}
 }
 
